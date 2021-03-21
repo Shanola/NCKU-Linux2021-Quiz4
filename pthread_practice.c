@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <semaphore.h>
 #include <time.h>
+#include <assert.h>
 
 double tvgetf()
 {
@@ -18,36 +19,42 @@ double tvgetf()
 }
 
 int cnt = 0;
-sem_t semaphore;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void *child()
+void *child(void *v)
 {
+    sleep(3);
 	for (int i=0; i<3; i++) {
-	    sem_wait(&semaphore);
 		pthread_mutex_lock(&mutex);
 		int tmp = cnt;
 		cnt = tmp + 1;
 		pthread_mutex_unlock(&mutex);
-		//cnt = cnt + 1;
 		printf("cnt = %d\n", cnt);
 	}
-	pthread_exit(NULL);
+	pthread_exit(v);
 }
 int main(void)
 {
-	// double t11 = tvgetf();
-    sem_init(&semaphore, 0, 0);
 	pthread_t t1, t2;
-	pthread_create(&t1, NULL, child, "NULL");
-	pthread_create(&t2, NULL, child, "NULL");
+	void *v1;
+	void *v2;
+	pthread_create(&t1, NULL, child, v1);
+    pthread_cancel(t1);
+	pthread_create(&t2, NULL, child, v2);
 
-	for(int i=0; i<6; i++) {
-	    sem_post(&semaphore);
+    int v = pthread_join(t1, &v1);
+	// if (!v) assert(v);
+	if (v1 == PTHREAD_CANCELED) {
+	    printf("Thread1 was canceled!\n");
+	} else {
+	    printf("No!\n");
 	}
-    pthread_join(t1, NULL);
-    pthread_join(t2, NULL);
-	// double t22 = tvgetf();
-	// printf("%.6f\n", (t22 - t11) * 1000);
+    v = pthread_join(t2, &v2);
+	// if (!v) assert(v);
+	if (v2 == PTHREAD_CANCELED) {
+	    printf("No! thread2 was canceled\n");
+	} else {
+	    printf("Ok\n");
+	}
 	return 0;
 }
