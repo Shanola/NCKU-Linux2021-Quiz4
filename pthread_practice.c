@@ -19,42 +19,35 @@ double tvgetf()
 }
 
 int cnt = 0;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *child(void *v)
 {
-    sleep(3);
-	for (int i=0; i<3; i++) {
-		pthread_mutex_lock(&mutex);
-		int tmp = cnt;
-		cnt = tmp + 1;
-		pthread_mutex_unlock(&mutex);
-		printf("cnt = %d\n", cnt);
-	}
+    int s = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (s != 0) assert(s == 0);
+	printf("thread_func(): Thread start, cancellation disabled\n");
+	sleep(3);
+	printf("thread_func(): About to enable cancellation\n");
+	s = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	if (s != 0) assert(s == 0);
+	sleep(1000); /* Should get canceled while we sleep */
+	/* Should never get here */
+	printf("therad not canceled!\n");
 	pthread_exit(v);
 }
 int main(void)
 {
-	pthread_t t1, t2;
+	pthread_t t1;
 	void *v1;
-	void *v2;
 	pthread_create(&t1, NULL, child, v1);
-    pthread_cancel(t1);
-	pthread_create(&t2, NULL, child, v2);
+    sleep(5); /* Give thread a chance to get started */
+	pthread_cancel(t1);
 
     int v = pthread_join(t1, &v1);
-	// if (!v) assert(v);
+	if (v != 0) assert(v==0);
 	if (v1 == PTHREAD_CANCELED) {
 	    printf("Thread1 was canceled!\n");
 	} else {
 	    printf("No!\n");
-	}
-    v = pthread_join(t2, &v2);
-	// if (!v) assert(v);
-	if (v2 == PTHREAD_CANCELED) {
-	    printf("No! thread2 was canceled\n");
-	} else {
-	    printf("Ok\n");
 	}
 	return 0;
 }
